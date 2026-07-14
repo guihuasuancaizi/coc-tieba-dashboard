@@ -200,13 +200,12 @@ with tab2:
         # 时间趋势
         if len(filtered_main) > 0:
             filtered_main['月份'] = filtered_main['创建时间_dt'].dt.to_period('M').astype(str)
-            monthly = filtered_main.groupby('月份').agg({
-                'ID': 'count',
-                '回复数': 'sum',
-                '点赞数': 'sum',
-                '浏览数': 'sum'
-            }).reset_index()
-            monthly.columns = ['月份', '发帖数', '总回复', '总点赞', '总浏览']
+            monthly = filtered_main.groupby('月份').agg(
+                发帖数=('回复数', 'size'),
+                总回复=('回复数', 'sum'),
+                总点赞=('点赞数', 'sum'),
+                总浏览=('浏览数', 'sum')
+            ).reset_index()
 
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             fig.add_trace(go.Bar(x=monthly['月份'], y=monthly['发帖数'], name='发帖数'), secondary_y=False)
