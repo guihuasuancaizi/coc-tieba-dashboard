@@ -129,7 +129,7 @@ st.markdown('<div class="main-header">C酱吧数据分析面板</div>', unsafe_a
 st.markdown(f"当前筛选条件：主帖 **{len(filtered_main)}** 条 | 楼层回复 **{len(filtered_reply)}** 条 | 楼中楼 **{len(filtered_lzl)}** 条")
 
 # 标签页
-tab1, tab2, tab3, tab4 = st.tabs(["概览", "发帖分析", "回复分析", "内容详情"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["概览", "发帖分析", "回复分析", "内容详情", "VOC分析"])
 
 # ============ Tab 1: 概览 ============
 with tab1:
@@ -354,3 +354,115 @@ with tab4:
     reply_detail_cols = ['数据来源', '内容', '点赞数', '楼中楼数', '情绪标签', '意图标签', '提及产品', '产品属性标签']
     reply_detail_cols = [c for c in reply_detail_cols if c in search_reply_results.columns]
     st.dataframe(search_reply_results[reply_detail_cols].head(100), use_container_width=True)
+
+# ============ Tab 5: VOC分析 ============
+with tab5:
+    st.subheader("重点产品用户原声 (VOC) 分析")
+
+    # 加载VOC数据
+    data_dir = os.path.dirname(os.path.abspath(__file__))
+    try:
+        voc_summary = pd.read_csv(os.path.join(data_dir, 'voc_summary.csv'))
+        voc_voices = pd.read_csv(os.path.join(data_dir, 'voc_voices.csv'))
+        voc_words = pd.read_csv(os.path.join(data_dir, 'voc_words.csv'))
+        voc_loaded = True
+    except:
+        voc_loaded = False
+        st.warning("VOC数据文件未找到，请先运行VOC分析脚本生成数据。")
+
+    if voc_loaded and len(voc_summary) > 0:
+        # 产品选择
+        product_list = voc_summary['产品'].tolist()
+        selected_product = st.selectbox("选择产品", product_list)
+
+        # 获取该产品数据
+        product_data = voc_summary[voc_summary['产品'] == selected_product].iloc[0]
+        pos_voices = voc_voices[(voc_voices['产品'] == selected_product) & (voc_voices['情绪'] == '正面')]['内容'].tolist()
+        neg_voices = voc_voices[(voc_voices['产品'] == selected_product) & (voc_voices['情绪'] == '负面')]['内容'].tolist()
+        pos_words = voc_words[(voc_words['产品'] == selected_product) & (voc_words['情绪'] == '正面')]
+        neg_words = voc_words[(voc_words['产品'] == selected_product) & (voc_words['情绪'] == '负面')]
+
+        # 指标卡片
+        c1, c2, c3, c4, c5 = st.columns(5)
+        with c1:
+            st.metric("总提及", int(product_data['总提及数']))
+        with c2:
+            st.metric("正面", int(product_data['正面数']), product_data['正面占比'])
+        with c3:
+            st.metric("负面", int(product_data['负面数']), product_data['负面占比'])
+        with c4:
+            st.metric("中性", int(product_data['中性数']))
+        with c5:
+            nps = int(product_data['正面数']) - int(product_data['负面数'])
+            st.metric("净推荐值", nps)
+
+        st.markdown("---")
+
+        col_left, col_right = st.columns(2)
+
+        with col_left:
+            st.markdown("### 好评分析")
+
+            # 好评属性
+            pos_attrs = []
+            for col in ['好评属性TOP1', '好评属性TOP2', '好评属性TOP3']:
+                if pd.notna(product_data[col]) and product_data[col]:
+                    pos_attrs.append(product_data[col])
+            if pos_attrs:
+                attr_df = pd.DataFrame({'属性': pos_attrs, '排名': [f'第{i+1}' for i in range(len(pos_attrs))]})
+                fig = px.bar(attr_df, x='属性', y='排名', color='属性', orientation='v',
+                           title='好评属性TOP3')
+                st.plotly_chart(fig, use_container_width=True)
+
+            # 好评关键词
+            if len(pos_words) > 0:
+                fig = px.bar(pos_words.head(10), x='关键词', y='频次', color='频次',
+                           title='好评高频关键词')
+                st.plotly_chart(fig, use_container_width=True)
+
+            # 好评原声
+            st.markdown("**好评原声（代表性评论）**")
+            for i, voice in enumerate(pos_voices[:5]):
+                if voice and str(voice).strip():
+                    st.info(f"{i+1}. {voice}")
+
+        with col_right:
+            st.markdown("### 差评分析")
+
+            # 差评属性
+            neg_attrs = []
+            for col in ['差评属性TOP1', '差评属性TOP2', '差评属性TOP3']:
+                if pd.notna(product_data[col]) and product_data[col]:
+                    neg_attrs.append(product_data[col])
+            if neg_attrs:
+                attr_df = pd.DataFrame({'属性': neg_attrs, '排名': [f'第{i+1}' for i in range(len(neg_attrs))]})
+                fig = px.bar(attr_df, x='属性', y='排名', color='属性', orientation='v',
+                           title='差评属性TOP3')
+                st.plotly_chart(fig, use_container_width=True)
+
+            # 差评关键词
+            if len(neg_words) > 0:
+                fig = px.bar(neg_words.head(10), x='关键词', y='频次', color='频次',
+                           title='差评高频关键词')
+                st.plotly_chart(fig, use_container_width=True)
+
+            # 差评原声
+            st.markdown("**差评原声（代表性评论）**")
+            for i, voice in enumerate(neg_voices[:5]):
+                if voice and str(voice).strip():
+                    st.error(f"{i+1}. {voice}")
+
+        st.markdown("---")
+        st.subheader("产品对比概览")
+
+        # 所有产品的情绪对比
+        fig = px.bar(voc_summary, x='产品', y=['正面数', '负面数', '中性数'],
+                    title='各产品情绪分布对比', barmode='group')
+        st.plotly_chart(fig, use_container_width=True)
+
+        # 正面占比排序
+        voc_summary['正面占比数值'] = voc_summary['正面占比'].str.replace('%', '').astype(float)
+        fig = px.bar(voc_summary.sort_values('正面占比数值', ascending=True),
+                    x='正面占比数值', y='产品', orientation='h',
+                    title='各产品好评率排名')
+        st.plotly_chart(fig, use_container_width=True)
