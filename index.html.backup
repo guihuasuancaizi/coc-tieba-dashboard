@@ -46,7 +46,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
-  font-family: 'WorkSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+  font-family: 'WorkSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: var(--ink);
@@ -482,42 +482,6 @@ tr:hover td { background: rgba(33,150,243,0.03); }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-
-/* ===== Module Toggle ===== */
-.module-toggle {
-  cursor: pointer;
-  padding: 6px 8px;
-  background: var(--accent-light);
-  border-radius: var(--radius-sm);
-  color: var(--accent);
-  font-weight: 700;
-  font-size: 0.75rem;
-  margin-bottom: 6px;
-  transition: background 0.2s;
-}
-.module-toggle:hover { background: #BBDEFB; }
-.module-toggle.collapsed::after { content: ' ▶'; }
-.module-toggle::after { content: ' ▼'; font-size: 0.6rem; }
-
-.module-content {
-  overflow: hidden;
-  transition: max-height 0.3s ease;
-  max-height: 800px;
-}
-.module-content.collapsed { max-height: 0; }
-
-.filter-subgroup {
-  margin-bottom: 8px;
-  padding-left: 4px;
-  border-left: 2px solid var(--accent-light);
-}
-.filter-sublabel {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: 4px;
-  padding-left: 6px;
-}
 </style>
 </head>
 <body>
@@ -529,7 +493,7 @@ tr:hover td { background: rgba(33,150,243,0.03); }
   <!-- Sidebar Filters -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-title">筛选条件</div>
-    <div class="sidebar-subtitle">点击模块展开筛选标签</div>
+    <div class="sidebar-subtitle">点击应用后刷新图表</div>
 
     <div class="filter-group">
       <div class="filter-label">数据来源 <span class="count" id="filter-count-source">0</span></div>
@@ -537,8 +501,18 @@ tr:hover td { background: rgba(33,150,243,0.03); }
     </div>
 
     <div class="filter-group">
-      <div class="filter-label">数据类型</div>
-      <div class="filter-options" id="filter-data-types"></div>
+      <div class="filter-label">帖子主题 <span class="count" id="filter-count-theme">0</span></div>
+      <div class="filter-options" id="filter-themes"></div>
+    </div>
+
+    <div class="filter-group">
+      <div class="filter-label">情绪标签 <span class="count" id="filter-count-emotion">0</span></div>
+      <div class="filter-options" id="filter-emotions"></div>
+    </div>
+
+    <div class="filter-group">
+      <div class="filter-label">提及产品 <span class="count" id="filter-count-product">0</span></div>
+      <div class="filter-options" id="filter-products"></div>
     </div>
 
     <div class="filter-group">
@@ -550,114 +524,9 @@ tr:hover td { background: rgba(33,150,243,0.03); }
       </div>
     </div>
 
-    <!-- 模块1：内容主题 -->
-    <div class="filter-group module-group">
-      <div class="filter-label module-toggle" data-module="内容主题">内容主题</div>
-      <div class="module-content" id="module-内容主题">
-        <div class="filter-options" id="filter-内容主题"></div>
-      </div>
-    </div>
-
-    <!-- 模块2：产品提及 -->
-    <div class="filter-group module-group">
-      <div class="filter-label module-toggle" data-module="产品提及">产品提及</div>
-      <div class="module-content collapsed" id="module-产品提及">
-        <div class="filter-subgroup">
-          <div class="filter-sublabel">COC品牌产品</div>
-          <div class="filter-options" id="filter-COC品牌产品"></div>
-        </div>
-        <div class="filter-subgroup">
-          <div class="filter-sublabel">其他产品</div>
-          <div class="filter-options" id="filter-其他产品"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 模块3：用户画像 -->
-    <div class="filter-group module-group">
-      <div class="filter-label module-toggle" data-module="用户画像">用户画像</div>
-      <div class="module-content collapsed" id="module-用户画像">
-        <div class="filter-subgroup"><div class="filter-sublabel">人口统计类</div><div class="filter-options" id="filter-人口统计类"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">使用经验类</div><div class="filter-options" id="filter-使用经验类"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">心理特征类</div><div class="filter-options" id="filter-心理特征类"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">社群归属类</div><div class="filter-options" id="filter-社群归属类"></div></div>
-      </div>
-    </div>
-
-    <!-- 模块4：购买目的 -->
-    <div class="filter-group module-group">
-      <div class="filter-label module-toggle" data-module="购买目的">购买目的</div>
-      <div class="module-content collapsed" id="module-购买目的">
-        <div class="filter-subgroup"><div class="filter-sublabel">功能性目的</div><div class="filter-options" id="filter-功能性目的"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">情感目的</div><div class="filter-options" id="filter-情感目的"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">社交目的</div><div class="filter-options" id="filter-社交目的"></div></div>
-      </div>
-    </div>
-
-    <!-- 模块5：使用场景 -->
-    <div class="filter-group module-group">
-      <div class="filter-label module-toggle" data-module="使用场景">使用场景</div>
-      <div class="module-content collapsed" id="module-使用场景">
-        <div class="filter-subgroup"><div class="filter-sublabel">使用场所</div><div class="filter-options" id="filter-使用场所"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">使用时间</div><div class="filter-options" id="filter-使用时间"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">使用行为</div><div class="filter-options" id="filter-使用行为"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">使用频率</div><div class="filter-options" id="filter-使用频率"></div></div>
-      </div>
-    </div>
-
-    <!-- 模块6：用户忠诚度 -->
-    <div class="filter-group module-group">
-      <div class="filter-label module-toggle" data-module="用户忠诚度">用户忠诚度</div>
-      <div class="module-content collapsed" id="module-用户忠诚度">
-        <div class="filter-subgroup"><div class="filter-sublabel">推荐行为</div><div class="filter-options" id="filter-推荐行为"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">购买次数</div><div class="filter-options" id="filter-购买次数"></div></div>
-      </div>
-    </div>
-
-    <!-- 模块7：购买动机 -->
-    <div class="filter-group module-group">
-      <div class="filter-label module-toggle" data-module="购买动机">购买动机</div>
-      <div class="module-content collapsed" id="module-购买动机">
-        <div class="filter-subgroup"><div class="filter-sublabel">促销刺激</div><div class="filter-options" id="filter-促销刺激"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">功能驱动</div><div class="filter-options" id="filter-功能驱动"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">幻想驱动</div><div class="filter-options" id="filter-幻想驱动"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">情感驱动</div><div class="filter-options" id="filter-情感驱动"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">替代升级驱动</div><div class="filter-options" id="filter-替代升级驱动"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">社交驱动</div><div class="filter-options" id="filter-社交驱动"></div></div>
-      </div>
-    </div>
-
-    <!-- 模块8：使用障碍 -->
-    <div class="filter-group module-group">
-      <div class="filter-label module-toggle" data-module="使用障碍">使用障碍</div>
-      <div class="module-content collapsed" id="module-使用障碍">
-        <div class="filter-subgroup"><div class="filter-sublabel">产品使用</div><div class="filter-options" id="filter-产品使用"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">产品保养</div><div class="filter-options" id="filter-产品保养"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">伴侣关系</div><div class="filter-options" id="filter-伴侣关系"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">场景障碍</div><div class="filter-options" id="filter-场景障碍"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">心理状态</div><div class="filter-options" id="filter-心理状态"></div></div>
-      </div>
-    </div>
-
-    <!-- 模块9：产品改进建议 -->
-    <div class="filter-group module-group">
-      <div class="filter-label module-toggle" data-module="产品改进建议">产品改进建议</div>
-      <div class="module-content collapsed" id="module-产品改进建议">
-        <div class="filter-subgroup"><div class="filter-sublabel">产品设计</div><div class="filter-options" id="filter-产品设计"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">体验优化</div><div class="filter-options" id="filter-体验优化"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">功能增强</div><div class="filter-options" id="filter-功能增强"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">服务支持</div><div class="filter-options" id="filter-服务支持"></div></div>
-      </div>
-    </div>
-
-    <!-- 模块10：克服方式 -->
-    <div class="filter-group module-group">
-      <div class="filter-label module-toggle" data-module="克服方式">克服方式</div>
-      <div class="module-content collapsed" id="module-克服方式">
-        <div class="filter-subgroup"><div class="filter-sublabel">创新使用方法</div><div class="filter-options" id="filter-创新使用方法"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">心理调试</div><div class="filter-options" id="filter-心理调试"></div></div>
-        <div class="filter-subgroup"><div class="filter-sublabel">社群支持</div><div class="filter-options" id="filter-社群支持"></div></div>
-      </div>
+    <div class="filter-group">
+      <div class="filter-label">活动贴</div>
+      <div class="filter-options" id="filter-activity"></div>
     </div>
 
     <div class="filter-actions">
@@ -680,15 +549,15 @@ tr:hover td { background: rgba(33,150,243,0.03); }
 
     <nav class="nav-tabs">
       <button class="nav-tab active" data-tab="overview">数据概览</button>
-      <button class="nav-tab" data-tab="posts">内容分析</button>
-      <button class="nav-tab" data-tab="user">用户洞察</button>
+      <button class="nav-tab" data-tab="posts">发帖分析</button>
+      <button class="nav-tab" data-tab="replies">回复分析</button>
       <button class="nav-tab" data-tab="voc">VOC 洞察</button>
     </nav>
 
     <!-- Overview Tab -->
     <div class="tab-panel active" id="tab-overview">
       <div class="metrics-grid">
-        <div class="metric-card"><div class="metric-value" id="ov-posts">-</div><div class="metric-label">有标签记录</div></div>
+        <div class="metric-card"><div class="metric-value" id="ov-posts">-</div><div class="metric-label">主帖总数</div></div>
         <div class="metric-card"><div class="metric-value" id="ov-replies">-</div><div class="metric-label">总回复数</div></div>
         <div class="metric-card"><div class="metric-value" id="ov-likes">-</div><div class="metric-label">总点赞数</div></div>
         <div class="metric-card"><div class="metric-value" id="ov-views">-</div><div class="metric-label">总浏览数</div></div>
@@ -705,8 +574,8 @@ tr:hover td { background: rgba(33,150,243,0.03); }
           <figure class="chart-figure"><div class="chart-container" id="chart-theme-dist"></div></figure>
         </div>
         <div class="section">
-          <h2 class="section-title">数据类型分布</h2>
-          <figure class="chart-figure"><div class="chart-container" id="chart-data-types"></div></figure>
+          <h2 class="section-title">情绪分布</h2>
+          <figure class="chart-figure"><div class="chart-container" id="chart-emotion-dist"></div></figure>
         </div>
       </div>
       <div class="section">
@@ -717,49 +586,54 @@ tr:hover td { background: rgba(33,150,243,0.03); }
 
     <!-- Posts Tab -->
     <div class="tab-panel" id="tab-posts">
-      <div class="chart-grid">
-        <div class="section">
-          <h2 class="section-title">COC产品提及 TOP10</h2>
-          <figure class="chart-figure"><div class="chart-container tall" id="chart-coc-products"></div></figure>
-        </div>
-        <div class="section">
-          <h2 class="section-title">购买动机分布</h2>
-          <figure class="chart-figure"><div class="chart-container tall" id="chart-motivation"></div></figure>
-        </div>
-      </div>
-      <div class="chart-grid">
-        <div class="section">
-          <h2 class="section-title">购买目的分布</h2>
-          <figure class="chart-figure"><div class="chart-container" id="chart-purpose"></div></figure>
-        </div>
-        <div class="section">
-          <h2 class="section-title">使用障碍分析</h2>
-          <figure class="chart-figure"><div class="chart-container" id="chart-obstacles"></div></figure>
-        </div>
-      </div>
       <div class="section">
-        <h2 class="section-title">产品改进建议</h2>
-        <figure class="chart-figure"><div class="chart-container" id="chart-improvement"></div></figure>
+        <h2 class="section-title">产品 & 属性提及 TOP15</h2>
+        <figure class="chart-figure"><div class="chart-container tall" id="chart-product-mentions"></div></figure>
+      </div>
+      <div class="chart-grid">
+        <div class="section">
+          <h2 class="section-title">数据源分布</h2>
+          <figure class="chart-figure"><div class="chart-container" id="chart-sources"></div></figure>
+        </div>
+        <div class="section">
+          <h2 class="section-title">互动率分布</h2>
+          <figure class="chart-figure"><div class="chart-container" id="chart-interaction"></div></figure>
+        </div>
       </div>
     </div>
 
-    <!-- User Tab -->
-    <div class="tab-panel" id="tab-user">
+    <!-- Replies Tab -->
+    <div class="tab-panel" id="tab-replies">
       <div class="section">
-        <h2 class="section-title">用户画像分布</h2>
-        <figure class="chart-figure"><div class="chart-container" id="chart-persona"></div></figure>
+        <h2 class="section-title">回复情绪趋势（按月）</h2>
+        <figure class="chart-figure"><div class="chart-container" id="chart-reply-trend"></div></figure>
       </div>
       <div class="section">
-        <h2 class="section-title">高频标签 TOP25 词云</h2>
-        <figure class="chart-figure"><div class="chart-container tall" id="chart-wordcloud"></div></figure>
+        <h2 class="section-title">高频产品提及词云</h2>
+        <figure class="chart-figure"><div class="chart-container" id="chart-wordcloud"></div></figure>
       </div>
     </div>
 
     <!-- VOC Tab -->
     <div class="tab-panel" id="tab-voc">
       <div class="section">
-        <h2 class="section-title">各产品提及量 & 相关标签</h2>
+        <h2 class="section-title">产品提及量 & 正负向分布</h2>
+        <figure class="chart-figure"><div class="chart-container tall" id="chart-voc-overview"></div></figure>
+      </div>
+      <div class="section">
+        <h2 class="section-title">产品好评率对比</h2>
+        <figure class="chart-figure"><div class="chart-container" id="chart-voc-ratio"></div></figure>
+      </div>
+      <div class="section">
+        <h2 class="section-title">各产品 VOC 详情</h2>
         <div class="voc-grid" id="voc-cards"></div>
+      </div>
+      <div class="section">
+        <h2 class="section-title">产品关键词 TOP5</h2>
+        <div class="table-wrap">
+          <table><thead><tr><th>产品</th><th>正向关键词</th><th>负向关键词</th></tr></thead>
+          <tbody id="voc-words-body"></tbody></table>
+        </div>
       </div>
     </div>
   </main>
