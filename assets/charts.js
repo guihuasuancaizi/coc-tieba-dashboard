@@ -14,32 +14,8 @@
   var warning = style.getPropertyValue('--warning').trim();
 
   var chartInstances = {};
-  var allMonths = RAW_DATA.options.months.slice();
-
-  // ===== VOC Static Data =====
-  var VOC_DATA = {
-    products: ['黄油小姐','可可狼姬','星梨奈','诺诺亚','赤鸢','猫娘','蜜桃','莓莓兔'],
-    total_mentions: [1143,1412,1754,534,4271,203,37,1368],
-    positive: [567,543,531,312,1721,31,30,1251],
-    negative: [44,36,37,11,28,5,1,2],
-    neutral: [532,833,1186,211,2522,167,6,115],
-    pos_ratio: [49.6,38.5,30.3,58.4,40.3,15.3,81.1,91.4],
-    neg_ratio: [3.8,2.5,2.1,2.1,0.7,2.5,2.7,0.1],
-    attrs: {
-      pos: [['材质','通道刺激度','外观'],['材质','通道刺激度','外观'],['通道刺激度','材质','电动功能'],['清洗','电动功能','材质'],['材质','外观','通道刺激度'],['材质','通道刺激度','外观'],['材质','外观','通道刺激度'],['外观','通道','材质']],
-      neg: [['材质','通道','通道刺激度'],['通道刺激度','材质','外观'],['材质','价格','外观'],['电动功能','价格','材质'],['价格','外观','电动功能'],['收纳','价格','物流包装'],['材质','',''],['通道刺激度','通道','电动功能']]
-    },
-    words: {
-      '黄油小姐': { pos: [['黄油小姐',357],['可可狼姬',61],['小姐',50],['油小姐',32],['分钟',19]], neg: [['黄油小姐',24],['可可狼姬',10],['小姐',5],['个杯子',3],['分钟',3]] },
-      '可可狼姬': { pos: [['可可狼姬',227],['黄油小姐',80],['狼姬',42],['可可',34],['可狼姬',31]], neg: [['可可狼姬',19],['黄油小姐',9],['狼姬',4],['外观上就',2],['不说了',2]] },
-      '星梨奈': { pos: [['星梨奈',109],['黄油小姐',28],['梨奈',25],['可可狼姬',22],['星梨奈可',20]], neg: [['星梨奈',6],['半身',4],['分钟左右',2],['趁着活动',2],['么选呢',2]] },
-      '诺诺亚': { pos: [['诺诺亚',52],['诺亚',23],['诺诺亚的',22],['黄油小姐',12],['诺诺亚是',9]], neg: [['么选呢',2],['说实话',2],['我对电动',2],['杯这个品',2],['类早就有',2]] },
-      '赤鸢': { pos: [['赤鸢生日',1120],['快乐',1118],['赤鸢',953],['许愿要个',872],['半身',21]], neg: [['赤鸢',8],['可可狼姬',5],['半身',3],['前通道多',2],['达十层的',2]] },
-      '猫娘': { pos: [['炎龙魔女',6],['猫娘',6],['猫娘兔娘',5],['新手',4],['拿在手里',4]], neg: [['以前一个',2],['人住',2],['总觉得晚',2],['上时间特',2],['别难熬',2]] },
-      '蜜桃': { pos: [['蜜桃',5],['关键词',4],['分钟',4],['打厚码',3],['黄油小姐',3]], neg: [['我手机拍',1],['的有色差',1],['实物是那',1],['种很含蓄',1],['的蜜桃粉',1]] },
-      '莓莓兔': { pos: [['莓莓兔生',625],['日快乐',622],['哇哦',562],['生日快乐',484],['祝莓莓兔',482]], neg: [['出差给兄',1],['嘚买的莓',1],['莓兔',1],['怎么感觉',1],['他比见到',1]] }
-    }
-  };
+  var allMonths = RAW_DATA.months.slice();
+  var modules = RAW_DATA.modules;
 
   // ===== Utils =====
   function fmt(n) { return n.toLocaleString('zh-CN'); }
@@ -48,8 +24,28 @@
     arr.forEach(function(r) { var v = r[key]; c[v] = (c[v] || 0) + 1; });
     return c;
   }
+  function countByTags(arr, dim) {
+    var c = {};
+    arr.forEach(function(r) {
+      (r[dim] || []).forEach(function(t) { c[t] = (c[t] || 0) + 1; });
+    });
+    return c;
+  }
   function topN(obj, n) {
     return Object.entries(obj).sort(function(a,b){ return b[1]-a[1]; }).slice(0, n);
+  }
+
+  // ===== Module Toggle =====
+  function initModuleToggles() {
+    document.querySelectorAll('.module-toggle').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var target = document.getElementById('module-' + this.getAttribute('data-module'));
+        if (target) {
+          target.classList.toggle('collapsed');
+          this.classList.toggle('collapsed');
+        }
+      });
+    });
   }
 
   // ===== Filter UI Init =====
@@ -68,34 +64,15 @@
 
   function initFilters() {
     var recs = RAW_DATA.records;
+
+    // 基础筛选
     var srcCounts = countBy(recs, 'source');
-    var themeCounts = countBy(recs, 'theme');
-    var emotionCounts = countBy(recs, 'emotion');
-    var prodCounts = {};
-    recs.forEach(function(r) { r.products.forEach(function(p) { prodCounts[p] = (prodCounts[p]||0)+1; }); });
-    var actCounts = countBy(recs, 'is_activity');
+    createOptions('filter-sources', RAW_DATA.sources, srcCounts);
 
-    createOptions('filter-sources', RAW_DATA.options.sources, srcCounts);
-    createOptions('filter-themes', RAW_DATA.options.themes, themeCounts);
-    createOptions('filter-emotions', RAW_DATA.options.emotions, emotionCounts);
+    var typeCounts = countBy(recs, 'data_type');
+    createOptions('filter-data-types', RAW_DATA.data_types, typeCounts);
 
-    // Products: sort by count desc
-    var prodList = RAW_DATA.options.products.slice().sort(function(a,b){ return (prodCounts[b]||0)-(prodCounts[a]||0); });
-    createOptions('filter-products', prodList, prodCounts);
-
-    // Activity
-    var actContainer = document.getElementById('filter-activity');
-    if (actContainer) {
-      actContainer.innerHTML = '';
-      ['是','否'].forEach(function(opt) {
-        var label = document.createElement('label');
-        label.className = 'filter-option';
-        label.innerHTML = '<input type="checkbox" value="' + opt + '" checked><span>' + (opt==='是'?'活动贴':'普通贴') + '</span><span class="opt-count">' + (actCounts[opt]||0) + '</span>';
-        actContainer.appendChild(label);
-      });
-    }
-
-    // Month range
+    // 月份范围
     var ms = document.getElementById('month-start');
     var me = document.getElementById('month-end');
     if (ms && me) {
@@ -108,7 +85,19 @@
       me.selectedIndex = allMonths.length - 1;
     }
 
+    // 标签维度筛选（按模块分组）
+    Object.keys(modules).forEach(function(moduleName) {
+      var dims = modules[moduleName];
+      dims.forEach(function(dim) {
+        var containerId = 'filter-' + dim;
+        var opts = RAW_DATA.options[dim] || [];
+        var counts = countByTags(recs, dim);
+        createOptions(containerId, opts, counts);
+      });
+    });
+
     updateFilterCounts(recs.length);
+    initModuleToggles();
   }
 
   function getCheckedValues(containerId) {
@@ -125,25 +114,34 @@
   // ===== Filter Logic =====
   function filterData() {
     var src = getCheckedValues('filter-sources');
-    var themes = getCheckedValues('filter-themes');
-    var emotions = getCheckedValues('filter-emotions');
-    var products = getCheckedValues('filter-products');
-    var activity = getCheckedValues('filter-activity');
+    var dataTypes = getCheckedValues('filter-data-types');
     var ms = document.getElementById('month-start');
     var me = document.getElementById('month-end');
     var mStart = ms ? ms.value : allMonths[0];
     var mEnd = me ? me.value : allMonths[allMonths.length-1];
 
+    // 收集所有标签维度的筛选条件
+    var tagFilters = {};
+    Object.keys(modules).forEach(function(moduleName) {
+      modules[moduleName].forEach(function(dim) {
+        var checked = getCheckedValues('filter-' + dim);
+        if (checked.length > 0) {
+          tagFilters[dim] = checked;
+        }
+      });
+    });
+
     var filtered = RAW_DATA.records.filter(function(r) {
       if (src.length && src.indexOf(r.source) === -1) return false;
-      if (themes.length && themes.indexOf(r.theme) === -1) return false;
-      if (emotions.length && emotions.indexOf(r.emotion) === -1) return false;
-      if (products.length) {
-        var hasProd = r.products.some(function(p) { return products.indexOf(p) !== -1; });
-        if (!hasProd) return false;
-      }
-      if (activity.length && activity.indexOf(r.is_activity) === -1) return false;
+      if (dataTypes.length && dataTypes.indexOf(r.data_type) === -1) return false;
       if (r.month && (r.month < mStart || r.month > mEnd)) return false;
+
+      // 标签筛选：每个维度内OR，维度间AND
+      for (var dim in tagFilters) {
+        var recordTags = r[dim] || [];
+        var hasMatch = recordTags.some(function(t) { return tagFilters[dim].indexOf(t) !== -1; });
+        if (!hasMatch) return false;
+      }
       return true;
     });
 
@@ -224,9 +222,9 @@
       ]
     });
 
-    // --- Theme Dist (Pie) ---
-    var themeCounts = countBy(data, 'theme');
-    var themeTop = topN(themeCounts, 10);
+    // --- Content Theme Dist (Pie) ---
+    var themeCounts = countByTags(data, '内容主题');
+    var themeTop = topN(themeCounts, 12);
     getOrCreate('chart-theme-dist', {
       animation: false,
       tooltip: Object.assign({ trigger: 'item', appendToBody: true, formatter: '{b}: {c} ({d}%)' }, tooltipBase),
@@ -234,14 +232,44 @@
       series: [{ type: 'pie', radius: ['40%', '70%'], center: ['38%', '50%'], avoidLabelOverlap: true, itemStyle: { borderRadius: 5, borderColor: bg2, borderWidth: 2 }, label: { show: false }, emphasis: { label: { show: true, fontSize: 13, fontWeight: 'bold', color: ink } }, data: themeTop.map(function(t){ return { name: t[0], value: t[1] }; }) }]
     });
 
-    // --- Emotion Dist (Pie) ---
-    var emotionCounts = countBy(data, 'emotion');
-    var emotionColors = { '正面': success, '负面': danger, '中性': muted };
-    getOrCreate('chart-emotion-dist', {
+    // --- COC Product Mentions (Horizontal Bar) ---
+    var cocCounts = countByTags(data, 'COC品牌产品');
+    var cocTop = topN(cocCounts, 10).reverse();
+    getOrCreate('chart-coc-products', {
+      animation: false,
+      tooltip: Object.assign({ trigger: 'axis', axisPointer: { type: 'shadow' }, appendToBody: true }, tooltipBase),
+      grid: { left: 80, right: 30, top: 10, bottom: 20 },
+      xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: rule, type: 'dashed' } }, axisLabel: { color: muted } },
+      yAxis: { type: 'category', data: cocTop.map(function(t){ return t[0]; }), axisLine: { lineStyle: { color: rule } }, axisLabel: { color: ink, fontSize: 11 } },
+      series: [{ type: 'bar', data: cocTop.map(function(t){ return t[1]; }), itemStyle: { color: accent, borderRadius: [0,4,4,0] }, barWidth: '55%', label: { show: true, position: 'right', color: muted, fontSize: 11 } }]
+    });
+
+    // --- User Persona (Radar or Stacked Bar) ---
+    var personaDims = ['人口统计类','使用经验类','心理特征类','社群归属类'];
+    var personaData = personaDims.map(function(dim) {
+      var cnt = countByTags(data, dim);
+      return Object.values(cnt).reduce(function(s,v){ return s+v; }, 0);
+    });
+    getOrCreate('chart-persona', {
+      animation: false,
+      tooltip: Object.assign({ trigger: 'axis', appendToBody: true }, tooltipBase),
+      grid: { left: 50, right: 30, top: 20, bottom: 30 },
+      xAxis: { type: 'category', data: personaDims, axisLine: { lineStyle: { color: rule } }, axisLabel: { color: ink, fontSize: 11 } },
+      yAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: rule, type: 'dashed' } }, axisLabel: { color: muted } },
+      series: [{ type: 'bar', data: personaData, itemStyle: { color: accent, borderRadius: [4,4,0,0] }, barWidth: '50%', label: { show: true, position: 'top', color: muted } }]
+    });
+
+    // --- Purchase Purpose (Pie) ---
+    var purposeDims = ['功能性目的','情感目的','社交目的'];
+    var purposeCounts = {};
+    purposeDims.forEach(function(dim) {
+      purposeCounts[dim] = Object.values(countByTags(data, dim)).reduce(function(s,v){ return s+v; }, 0);
+    });
+    getOrCreate('chart-purpose', {
       animation: false,
       tooltip: Object.assign({ trigger: 'item', appendToBody: true, formatter: '{b}: {c} ({d}%)' }, tooltipBase),
       legend: { bottom: 0, textStyle: { color: muted } },
-      series: [{ type: 'pie', radius: ['40%', '70%'], center: ['50%', '45%'], itemStyle: { borderRadius: 5, borderColor: bg2, borderWidth: 2 }, label: { show: true, formatter: '{b}\n{d}%', color: ink, fontSize: 12 }, data: Object.entries(emotionCounts).map(function(e){ return { name: e[0], value: e[1], itemStyle: { color: emotionColors[e[0]] || accent } }; }) }]
+      series: [{ type: 'pie', radius: ['40%', '70%'], center: ['50%', '45%'], itemStyle: { borderRadius: 5, borderColor: bg2, borderWidth: 2 }, label: { show: true, formatter: '{b}\n{d}%', color: ink, fontSize: 12 }, data: Object.entries(purposeCounts).map(function(e){ return { name: e[0], value: e[1] }; }) }]
     });
 
     // --- Heatmap ---
@@ -274,22 +302,6 @@
       series: [{ type: 'heatmap', data: heatData, label: { show: true, formatter: function(p){ return p.value[2] > 0 ? p.value[2] : ''; }, color: ink, fontSize: 9 }, itemStyle: { borderColor: bg2, borderWidth: 1, borderRadius: 2 } }]
     });
 
-    // --- Product Mentions (Horizontal Bar) ---
-    var prodCounts = {};
-    data.forEach(function(r) {
-      r.products.forEach(function(p) { prodCounts[p] = (prodCounts[p]||0)+1; });
-      r.attrs.forEach(function(a) { prodCounts[a] = (prodCounts[a]||0)+1; });
-    });
-    var prodTop = topN(prodCounts, 15).reverse();
-    getOrCreate('chart-product-mentions', {
-      animation: false,
-      tooltip: Object.assign({ trigger: 'axis', axisPointer: { type: 'shadow' }, appendToBody: true }, tooltipBase),
-      grid: { left: 90, right: 30, top: 10, bottom: 20 },
-      xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: rule, type: 'dashed' } }, axisLabel: { color: muted } },
-      yAxis: { type: 'category', data: prodTop.map(function(t){ return t[0]; }), axisLine: { lineStyle: { color: rule } }, axisLabel: { color: ink, fontSize: 11 } },
-      series: [{ type: 'bar', data: prodTop.map(function(t){ return t[1]; }), itemStyle: { color: accent, borderRadius: [0,4,4,0] }, barWidth: '55%', label: { show: true, position: 'right', color: muted, fontSize: 11 } }]
-    });
-
     // --- Source Dist (Donut) ---
     var srcCounts = countBy(data, 'source');
     getOrCreate('chart-sources', {
@@ -299,47 +311,79 @@
       series: [{ type: 'pie', radius: ['45%', '72%'], center: ['50%', '45%'], itemStyle: { borderRadius: 5, borderColor: bg2, borderWidth: 2 }, label: { show: true, formatter: '{b}\n{d}%', color: ink }, data: Object.entries(srcCounts).map(function(e){ return { name: e[0], value: e[1] }; }) }]
     });
 
-    // --- Interaction Rate (Bar) ---
-    var bins = ['0-1%', '1-3%', '3-5%', '5-10%', '10%+'];
-    var binCounts = [0,0,0,0,0];
-    data.forEach(function(r) {
-      var rate = r.interaction_rate;
-      if (rate < 0.01) binCounts[0]++;
-      else if (rate < 0.03) binCounts[1]++;
-      else if (rate < 0.05) binCounts[2]++;
-      else if (rate < 0.10) binCounts[3]++;
-      else binCounts[4]++;
-    });
-    getOrCreate('chart-interaction', {
+    // --- Data Type Dist ---
+    var typeCounts = countBy(data, 'data_type');
+    getOrCreate('chart-data-types', {
       animation: false,
-      tooltip: Object.assign({ trigger: 'axis', appendToBody: true }, tooltipBase),
-      grid: { left: 45, right: 25, top: 15, bottom: 25 },
-      xAxis: { type: 'category', data: bins, axisLine: { lineStyle: { color: rule } }, axisLabel: { color: muted, fontSize: 11 } },
-      yAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: rule, type: 'dashed' } }, axisLabel: { color: muted } },
-      series: [{ type: 'bar', data: binCounts, itemStyle: { color: accent, borderRadius: [4,4,0,0] }, barWidth: '50%', label: { show: true, position: 'top', color: muted } }]
+      tooltip: Object.assign({ trigger: 'item', appendToBody: true, formatter: '{b}: {c} ({d}%)' }, tooltipBase),
+      legend: { bottom: 0, textStyle: { color: muted } },
+      series: [{ type: 'pie', radius: ['40%', '65%'], center: ['50%', '45%'], itemStyle: { borderRadius: 5, borderColor: bg2, borderWidth: 2 }, label: { show: true, formatter: '{b}\n{d}%', color: ink, fontSize: 12 }, data: Object.entries(typeCounts).map(function(e){ return { name: e[0], value: e[1] }; }) }]
     });
 
-    // --- Reply Trend (Stacked Area) ---
-    getOrCreate('chart-reply-trend', {
+    // --- Purchase Motivation (Horizontal Bar) ---
+    var motiDims = ['促销刺激','功能驱动','幻想驱动','情感驱动','替代升级驱动','社交驱动'];
+    var motiData = motiDims.map(function(dim) {
+      return Object.values(countByTags(data, dim)).reduce(function(s,v){ return s+v; }, 0);
+    });
+    getOrCreate('chart-motivation', {
       animation: false,
-      tooltip: Object.assign({ trigger: 'axis', appendToBody: true }, tooltipBase),
-      legend: { data: ['正面','中性','负面'], bottom: 0, textStyle: { color: muted } },
-      grid: { left: 50, right: 30, top: 20, bottom: 40 },
-      xAxis: { type: 'category', data: monthsArr, axisLine: { lineStyle: { color: rule } }, axisLabel: { color: muted, fontSize: 11 } },
-      yAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: rule, type: 'dashed' } }, axisLabel: { color: muted } },
-      series: [
-        { name: '正面', type: 'line', stack: 'Total', areaStyle: { opacity: 0.25 }, lineStyle: { color: success }, itemStyle: { color: success }, data: monthsArr.map(function(m){ return Math.round(monthly[m].posts * 0.55); }) },
-        { name: '中性', type: 'line', stack: 'Total', areaStyle: { opacity: 0.25 }, lineStyle: { color: muted }, itemStyle: { color: muted }, data: monthsArr.map(function(m){ return Math.round(monthly[m].posts * 0.38); }) },
-        { name: '负面', type: 'line', stack: 'Total', areaStyle: { opacity: 0.25 }, lineStyle: { color: danger }, itemStyle: { color: danger }, data: monthsArr.map(function(m){ return Math.round(monthly[m].posts * 0.07); }) }
-      ]
+      tooltip: Object.assign({ trigger: 'axis', axisPointer: { type: 'shadow' }, appendToBody: true }, tooltipBase),
+      grid: { left: 90, right: 30, top: 10, bottom: 20 },
+      xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: rule, type: 'dashed' } }, axisLabel: { color: muted } },
+      yAxis: { type: 'category', data: motiDims, axisLine: { lineStyle: { color: rule } }, axisLabel: { color: ink, fontSize: 11 } },
+      series: [{ type: 'bar', data: motiData, itemStyle: { color: accent, borderRadius: [0,4,4,0] }, barWidth: '55%', label: { show: true, position: 'right', color: muted, fontSize: 11 } }]
     });
 
-    // --- Word Cloud (Scatter) ---
-    var wcData = [];
-    var wcColors = [accent, accent2, success, warning, danger];
-    var prodList = Object.keys(prodCounts).slice(0, 20);
-    prodList.forEach(function(prod, pi) {
-      wcData.push({ name: prod, value: prodCounts[prod], color: wcColors[pi % wcColors.length], size: Math.min(55, Math.max(16, prodCounts[prod] / 6)) });
+    // --- Usage Obstacles (Horizontal Bar) ---
+    var obstDims = ['产品使用','产品保养','伴侣关系','场景障碍','心理状态'];
+    var obstData = obstDims.map(function(dim) {
+      return Object.values(countByTags(data, dim)).reduce(function(s,v){ return s+v; }, 0);
+    });
+    getOrCreate('chart-obstacles', {
+      animation: false,
+      tooltip: Object.assign({ trigger: 'axis', axisPointer: { type: 'shadow' }, appendToBody: true }, tooltipBase),
+      grid: { left: 70, right: 30, top: 10, bottom: 20 },
+      xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: rule, type: 'dashed' } }, axisLabel: { color: muted } },
+      yAxis: { type: 'category', data: obstDims, axisLine: { lineStyle: { color: rule } }, axisLabel: { color: ink, fontSize: 11 } },
+      series: [{ type: 'bar', data: obstData, itemStyle: { color: warning, borderRadius: [0,4,4,0] }, barWidth: '55%', label: { show: true, position: 'right', color: muted, fontSize: 11 } }]
+    });
+
+    // --- Improvement Suggestions (Horizontal Bar) ---
+    var impDims = ['产品设计','体验优化','功能增强','服务支持'];
+    var impData = impDims.map(function(dim) {
+      return Object.values(countByTags(data, dim)).reduce(function(s,v){ return s+v; }, 0);
+    });
+    getOrCreate('chart-improvement', {
+      animation: false,
+      tooltip: Object.assign({ trigger: 'axis', axisPointer: { type: 'shadow' }, appendToBody: true }, tooltipBase),
+      grid: { left: 70, right: 30, top: 10, bottom: 20 },
+      xAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: rule, type: 'dashed' } }, axisLabel: { color: muted } },
+      yAxis: { type: 'category', data: impDims, axisLine: { lineStyle: { color: rule } }, axisLabel: { color: ink, fontSize: 11 } },
+      series: [{ type: 'bar', data: impData, itemStyle: { color: success, borderRadius: [0,4,4,0] }, barWidth: '55%', label: { show: true, position: 'right', color: muted, fontSize: 11 } }]
+    });
+
+    // --- Top Tags Word Cloud ---
+    var allTagCounts = {};
+    Object.keys(modules).forEach(function(mod) {
+      modules[mod].forEach(function(dim) {
+        var cnt = countByTags(data, dim);
+        Object.entries(cnt).forEach(function(e) {
+          allTagCounts[e[0]] = (allTagCounts[e[0]] || 0) + e[1];
+        });
+      });
+    });
+    var wcTop = topN(allTagCounts, 25);
+    var wcData = wcTop.map(function(t, i) {
+      var sizes = [55, 48, 42, 38, 34, 30, 28, 26, 24, 22, 20, 18, 16, 16, 14, 14, 14, 12, 12, 12, 12, 12, 12, 12, 12];
+      var colors = [accent, accent2, success, warning, danger];
+      var angle = (i / wcTop.length) * Math.PI * 2;
+      var radius = 20 + (i % 7) * 12;
+      return {
+        name: t[0], value: [Math.cos(angle)*radius, Math.sin(angle)*radius, t[1]],
+        symbolSize: sizes[i] || 12,
+        itemStyle: { color: colors[i % colors.length] },
+        label: { show: true, formatter: t[0], color: ink, fontSize: Math.max(10, (sizes[i]||12)/2), fontWeight: 'bold' }
+      };
     });
     getOrCreate('chart-wordcloud', {
       animation: false,
@@ -347,33 +391,11 @@
       grid: { left: 20, right: 20, top: 20, bottom: 20 },
       xAxis: { show: false, min: -100, max: 100 },
       yAxis: { show: false, min: -100, max: 100 },
-      series: [{ type: 'scatter', data: wcData.map(function(d, i){ var angle = (i / wcData.length) * Math.PI * 2; var radius = 25 + (i % 6) * 14; return { name: d.name, value: [Math.cos(angle)*radius, Math.sin(angle)*radius, d.value], symbolSize: d.size, itemStyle: { color: d.color }, label: { show: true, formatter: d.name, color: ink, fontSize: 11, fontWeight: 'bold' } }; }), label: { show: true, position: 'inside' } }]
+      series: [{ type: 'scatter', data: wcData, label: { show: true, position: 'inside' } }]
     });
 
-    // --- VOC Overview ---
-    getOrCreate('chart-voc-overview', {
-      animation: false,
-      tooltip: Object.assign({ trigger: 'axis', axisPointer: { type: 'shadow' }, appendToBody: true }, tooltipBase),
-      legend: { data: ['正面','中性','负面'], bottom: 0, textStyle: { color: muted } },
-      grid: { left: 55, right: 25, top: 20, bottom: 40 },
-      xAxis: { type: 'category', data: VOC_DATA.products, axisLine: { lineStyle: { color: rule } }, axisLabel: { color: ink, fontSize: 11 } },
-      yAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: rule, type: 'dashed' } }, axisLabel: { color: muted } },
-      series: [
-        { name: '正面', type: 'bar', stack: 'total', data: VOC_DATA.positive, itemStyle: { color: success } },
-        { name: '中性', type: 'bar', stack: 'total', data: VOC_DATA.neutral, itemStyle: { color: muted + '66' } },
-        { name: '负面', type: 'bar', stack: 'total', data: VOC_DATA.negative, itemStyle: { color: danger, borderRadius: [4,4,0,0] } }
-      ]
-    });
-
-    // --- VOC Ratio ---
-    getOrCreate('chart-voc-ratio', {
-      animation: false,
-      tooltip: Object.assign({ trigger: 'axis', appendToBody: true, formatter: function(p){ return p[0].name + '<br/>好评率: ' + p[0].value + '%'; } }, tooltipBase),
-      grid: { left: 55, right: 25, top: 20, bottom: 25 },
-      xAxis: { type: 'category', data: VOC_DATA.products, axisLine: { lineStyle: { color: rule } }, axisLabel: { color: ink, fontSize: 11 } },
-      yAxis: { type: 'value', max: 100, axisLine: { show: false }, splitLine: { lineStyle: { color: rule, type: 'dashed' } }, axisLabel: { color: muted, formatter: '{value}%' } },
-      series: [{ type: 'bar', data: VOC_DATA.pos_ratio, itemStyle: { color: function(p){ var v = p.value; return v >= 70 ? success : v >= 40 ? accent : v >= 20 ? warning : danger; }, borderRadius: [4,4,0,0] }, barWidth: '50%', label: { show: true, position: 'top', formatter: '{c}%', color: muted, fontWeight: 'bold' } }]
-    });
+    // --- VOC: Product mentions with related tags ---
+    updateVOC(data);
 
     // Resize all
     setTimeout(function() {
@@ -381,43 +403,38 @@
     }, 100);
   }
 
-  // ===== VOC Cards & Table =====
-  function renderVOC() {
+  // ===== VOC Section =====
+  function updateVOC(data) {
     var container = document.getElementById('voc-cards');
     if (!container) return;
     container.innerHTML = '';
-    VOC_DATA.products.forEach(function(prod, i) {
+
+    var cocProducts = RAW_DATA.options['COC品牌产品'] || [];
+    cocProducts.forEach(function(prod) {
+      var cnt = 0;
+      var relatedTags = {};
+      data.forEach(function(r) {
+        var tags = r['COC品牌产品'] || [];
+        if (tags.indexOf(prod) !== -1) {
+          cnt++;
+          // 收集相关标签
+          ['使用感受讨论','产品质量问题','功能体验良好','改进产品设计','优化材质选择'].forEach(function(dim) {
+            (r[dim] || []).forEach(function(t) {
+              relatedTags[t] = (relatedTags[t] || 0) + 1;
+            });
+          });
+        }
+      });
+
+      var topRelated = topN(relatedTags, 5).map(function(t){ return t[0]; });
+
       var card = document.createElement('div');
       card.className = 'voc-card';
-      var posAttr = VOC_DATA.attrs.pos[i].filter(function(a){ return a; }).map(function(a){ return '<span class="voc-attr">' + a + '</span>'; }).join('');
-      var negAttr = VOC_DATA.attrs.neg[i].filter(function(a){ return a; }).map(function(a){ return '<span class="voc-attr neg">' + a + '</span>'; }).join('');
-      var posPct = VOC_DATA.pos_ratio[i];
-      var badgeClass = posPct >= 60 ? 'pos' : posPct >= 30 ? 'neu' : 'neg';
-      var badgeText = posPct >= 60 ? '高好评' : posPct >= 30 ? '中评' : '低好评';
-      card.innerHTML = '<div class="voc-header"><div class="voc-name">' + prod + '</div><span class="voc-badge ' + badgeClass + '">' + badgeText + '</span></div>' +
-        '<div class="voc-stats">' +
-        '<div class="voc-stat"><div class="voc-stat-value">' + VOC_DATA.total_mentions[i] + '</div><div class="voc-stat-label">总提及</div></div>' +
-        '<div class="voc-stat"><div class="voc-stat-value" style="color:' + success + '">' + VOC_DATA.positive[i] + '</div><div class="voc-stat-label">正面</div></div>' +
-        '<div class="voc-stat"><div class="voc-stat-value" style="color:' + danger + '">' + VOC_DATA.negative[i] + '</div><div class="voc-stat-label">负面</div></div>' +
-        '<div class="voc-stat"><div class="voc-stat-value">' + posPct + '%</div><div class="voc-stat-label">好评率</div></div>' +
-        '</div><div class="voc-divider"></div>' +
-        '<div style="margin-bottom:6px;font-size:0.75rem;color:' + muted + ';font-weight:600;">好评属性 TOP3</div><div class="voc-attrs">' + posAttr + '</div>' +
-        '<div style="margin:10px 0 6px;font-size:0.75rem;color:' + muted + ';font-weight:600;">差评属性 TOP3</div><div class="voc-attrs">' + negAttr + '</div>';
+      card.innerHTML = '<div class="voc-header"><div class="voc-name">' + prod + '</div><span class="voc-badge pos">提及 ' + cnt + '</span></div>' +
+        '<div style="font-size:0.75rem;color:' + muted + ';margin-bottom:8px;">相关标签 TOP5</div>' +
+        '<div class="voc-attrs">' + topRelated.map(function(a){ return '<span class="voc-attr">' + a + '</span>'; }).join('') + '</div>';
       container.appendChild(card);
     });
-
-    var tbody = document.getElementById('voc-words-body');
-    if (tbody) {
-      tbody.innerHTML = '';
-      VOC_DATA.products.forEach(function(prod) {
-        var words = VOC_DATA.words[prod];
-        var posWords = words.pos.map(function(w){ return w[0] + '(' + w[1] + ')'; }).join(', ');
-        var negWords = words.neg.map(function(w){ return w[0] + '(' + w[1] + ')'; }).join(', ');
-        var row = document.createElement('tr');
-        row.innerHTML = '<td><strong>' + prod + '</strong></td><td style="color:' + success + '">' + posWords + '</td><td style="color:' + danger + '">' + negWords + '</td>';
-        tbody.appendChild(row);
-      });
-    }
   }
 
   // ===== Tab Switching =====
@@ -467,7 +484,6 @@
 
   // ===== Init =====
   initFilters();
-  renderVOC();
   updateDashboard(RAW_DATA.records);
 
 })();
